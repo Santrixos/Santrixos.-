@@ -6,178 +6,254 @@
     <title>Reproductor de Música</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-        }
-        #file-list {
-            list-style: none;
-            padding: 0;
+            font-family: 'Arial', sans-serif;
+            background-color: #0f0f0f;
+            color: #ffffff;
             margin: 0;
-            background-color: #fff;
-            border: 1px solid #ccc;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            text-align: center;
         }
-        #file-list li {
+
+        h1 {
+            color: #e300ff;
+            font-size: 2rem;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            width: 60%;
             padding: 10px;
-            border-bottom: 1px solid #ccc;
-            cursor: pointer;
-        }
-        #file-list li:hover {
-            background-color: #f5f5f5;
-        }
-        #file-list li:last-child {
-            border-bottom: none;
-        }
-        #audio-player {
-            width: 100%;
-            height: 50px;
-            margin-top: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        #file-input {
-            display: none;
-        }
-        .file-input-label {
-            background-color: #4CAF50;
-            color: #fff;
-            padding: 10px 20px;
+            font-size: 18px;
             border: none;
-            border-radius: 10px;
-            cursor: pointer;
+            border-radius: 50px;
+            margin-bottom: 20px;
+            background-color: #1f1f1f;
+            color: #ffffff;
+            padding-left: 20px;
         }
-        .file-input-label:hover {
-            background-color: #3e8e41;
+
+        button {
+            padding: 10px 20px;
+            font-size: 18px;
+            border: none;
+            background-color: #e300ff;
+            color: white;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #e300ff;
+        }
+
+        /* Contenedor de los controles en la parte superior */
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        /* Lista de canciones estilo carrusel */
+        #album-container {
+            display: flex;
+            overflow-x: auto;
+            gap: 20px;
+            margin-top: 20px;
+            padding: 10px;
+            scroll-behavior: smooth;
+        }
+
+        .album {
+            background-color: #1f1f1f;
+            padding: 10px;
+            border-radius: 10px;
+            width: 200px;
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .album:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255, 111, 0, 0.5);
+        }
+
+        .album img {
+            width: 100%;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .album h3 {
+            color: #e300ff;
+            font-size: 14px;
+            margin: 0;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .play-btn {
+            padding: 10px;
+            background-color: #f800ff;
+            color: white;
+            border-radius: 50px;
+            cursor: pointer;
+            border: none;
+        }
+
+        .play-btn:hover {
+            background-color: ##f800ff;
+        }
+
+        /* Botones para navegar entre canciones */
+        .nav-buttons {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .nav-buttons button {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: #f800ff;
+            color: #ffffff;
+            font-size: 24px;
+        }
+
+        button:hover {
+            background-color: ##ffffff;
+            color: white;
+        }
+
+        #player {
+            display: none;
         }
     </style>
 </head>
 <body>
-    <h1 style="text-align: center; margin-top: 20px;">Reproductor de Música</h1>
-    <div style="text-align: center; margin-top: 20px;">
-        <label for="file-input" class="file-input-label">Seleccionar carpeta</label>
-        <input type="file" id="file-input" webkitdirectory directory multiple>
+
+    <h1>THE STYLE OF MUSIC </h1>
+    
+    <input type="text" id="search-query" placeholder="Puedes buscar tu canción...">
+    <button onclick="searchMusic()">Buscar</button>
+
+    <div id="album-container"></div>
+
+    <div class="nav-buttons">
+        <button id="prevBtn" onclick="prevSong()">&#10094;</button>
+        <button id="playBtn" onclick="playPause()">&#9654;</button>
+        <button id="nextBtn" onclick="nextSong()">&#10095;</button>
     </div>
-    <ul id="file-list" style="margin-top: 20px; max-width: 500px; margin-left: auto; margin-right: auto;"></ul>
-    <audio id="audio-player" controls></audio>
+
+    <!-- Reproductor de YouTube oculto -->
+    <div id="player"></div>
 
     <script>
-        const fileInput = document.getElementById('file-input');
-        const fileList = document.getElementById('file-list');
-        const audioPlayer = document.getElementById('audio-player');
+        let player;
+        let currentVideoIndex = 0;
+        let videoIds = [];
+        let isPlaying = false;
 
-        fileInput.addEventListener('change', async () => {
-            const files = fileInput.files;
-            const fileSystem = await window.showDirectoryPicker();
-            const directoryHandle = await fileSystem.getDirectoryHandle();
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+                height: '0',
+                width: '0',
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+        }
 
-            fileList.innerHTML = '';
+        function onPlayerReady(event) {
+            console.log("El reproductor está listo.");
+        }
 
-            for (const file of files) {
-                const fileHandle = await directoryHandle.getFileHandle(file.name);
-                const fileURL = URL.createObjectURL(file);
-
-                const listItem = document.createElement('li');
-                listItem.textContent = file.name;
-                listItem.addEventListener('click', () => {
-                    audioPlayer.src = fileURL;
-                    audioPlayer.play();
-                });
-
-                fileList.appendChild(listItem);
+        function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.ENDED) {
+                nextSong();
             }
-        });
-    </script>
-</body>
-  </html><!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reproductor de Música</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
         }
-        #file-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            background-color: #fff;
-            border: 1px solid #ccc;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        #file-list li {
-            padding: 10px;
-            border-bottom: 1px solid #ccc;
-            cursor: pointer;
-        }
-        #file-list li:hover {
-            background-color: #f5f5f5;
-        }
-        #file-list li:last-child {
-            border-bottom: none;
-        }
-        #audio-player {
-            width: 100%;
-            height: 50px;
-            margin-top: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        #file-input {
-            display: none;
-        }
-        .file-input-label {
-            background-color: #4CAF50;
-            color: #fff;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-        }
-        .file-input-label:hover {
-            background-color: #3e8e41;
-        }
-    </style>
-</head>
-<body>
-    <h1 style="text-align: center; margin-top: 20px;">Reproductor de Música</h1>
-    <div style="text-align: center; margin-top: 20px;">
-        <label for="file-input" class="file-input-label">Seleccionar carpeta</label>
-        <input type="file" id="file-input" webkitdirectory directory multiple>
-    </div>
-    <ul id="file-list" style="margin-top: 20px; max-width: 500px; margin-left: auto; margin-right: auto;"></ul>
-    <audio id="audio-player" controls></audio>
 
-    <script>
-        const fileInput = document.getElementById('file-input');
-        const fileList = document.getElementById('file-list');
-        const audioPlayer = document.getElementById('audio-player');
+        function searchMusic() {
+            const query = document.getElementById('search-query').value;
+            const apiKey = 'AIzaSyCVwFlN3vOjhkEhkQRcpEW-LtL-IGFhiWA';
+            const apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=10&q=${query}&type=video&videoCategoryId=10&key=${apiKey}`;
 
-        fileInput.addEventListener('change', async () => {
-            const files = fileInput.files;
-            const fileSystem = await window.showDirectoryPicker();
-            const directoryHandle = await fileSystem.getDirectoryHandle();
-
-            fileList.innerHTML = '';
-
-            for (const file of files) {
-                const fileHandle = await directoryHandle.getFileHandle(file.name);
-                const fileURL = URL.createObjectURL(file);
-
-                const listItem = document.createElement('li');
-                listItem.textContent = file.name;
-                listItem.addEventListener('click', () => {
-                    audioPlayer.src = fileURL;
-                    audioPlayer.play();
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    videoIds = data.items.map(video => video.id.videoId);
+                    displayResults(data.items);
+                })
+                .catch(error => {
+                    console.error('Error al buscar videos:', error);
                 });
+        }
 
-                fileList.appendChild(listItem);
+        function displayResults(videos) {
+            const albumContainer = document.getElementById('album-container');
+            albumContainer.innerHTML = '';
+
+            videos.forEach((video, index) => {
+                const album = document.createElement('div');
+                album.className = 'album';
+
+                const thumbnail = video.snippet.thumbnails.medium.url;
+                const title = video.snippet.title;
+
+                album.innerHTML = `
+                    <img src="${thumbnail}" alt="Imagen del video">
+                    <h3>${title}</h3>
+                    <button class="play-btn" onclick="playSpecificSong(${index})">Reproducir</button>
+                `;
+
+                albumContainer.appendChild(album);
+            });
+        }
+
+        function playSong(videoId) {
+            player.loadVideoById(videoId);
+            isPlaying = true;
+            document.getElementById('playBtn').innerHTML = '&#10073;&#10073;'; // Botón de pausa
+        }
+
+        function playSpecificSong(index) {
+            currentVideoIndex = index;
+            playSong(videoIds[currentVideoIndex]);
+        }
+
+        function playPause() {
+            if (isPlaying) {
+                player.pauseVideo();
+                isPlaying = false;
+                document.getElementById('playBtn').innerHTML = '&#9654;'; // Botón de reproducción
+            } else {
+                player.playVideo();
+                isPlaying = true;
+                document.getElementById('playBtn').innerHTML = '&#10073;&#10073;'; // Botón de pausa
             }
-        });
+        }
+
+        function prevSong() {
+            currentVideoIndex = (currentVideoIndex > 0) ? currentVideoIndex - 1 : videoIds.length - 1;
+            playSong(videoIds[currentVideoIndex]);
+        }
+
+        function nextSong() {
+            currentVideoIndex = (currentVideoIndex < videoIds.length - 1) ? currentVideoIndex + 1 : 0;
+            playSong(videoIds[currentVideoIndex]);
+        }
+
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
     </script>
+
 </body>
 </html>
